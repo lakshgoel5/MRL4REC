@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import scipy.sparse as sp
 import math
@@ -21,8 +22,7 @@ train_item_pop = defaultdict(int)
 test_item_pop = defaultdict(int)
 valid_item_pop = defaultdict(int)
 
-dataset_list = ['ml100k', 'phone', 'sport', 'tool', 'beauty', 'gowalla', 'yelp2018', 'amazon', 'tripartite_aug_ttv']
-
+dataset_list = ['ml100k', 'phone', 'sport', 'tool', 'beauty', 'gowalla', 'yelp2018', 'amazon', 'tripartite_aug_ttv', 'btp_10k']
 
 def read_cf_amazon(file_name):
     return np.loadtxt(file_name, dtype=np.int32)  # [u_id, i_id]
@@ -128,7 +128,8 @@ def load_data(model_args):
     print('reading train and test user-item set ...')
     train_cf = read_cf(directory + 'train.txt')
     test_cf = read_cf(directory + 'test.txt')
-    if args.dataset not in dataset_list:
+    has_valid = os.path.exists(directory + 'valid.txt')
+    if has_valid:
         valid_cf = read_cf(directory + 'valid.txt')
     else:
         valid_cf = test_cf
@@ -144,7 +145,7 @@ def load_data(model_args):
     print(n_params)
     user_dict = {
         'train_user_set': train_user_set,
-        'valid_user_set': valid_user_set if args.dataset not in dataset_list else None,
+        'valid_user_set': valid_user_set if has_valid else None,
         'test_user_set': test_user_set,
         # add item set
         'train_item_set': train_item_set

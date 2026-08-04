@@ -140,6 +140,7 @@ if __name__ == '__main__':
             print(train_res)
 
             file_path = './results/' + args.dataset + '/' + str(args.context_hops) + args.loss + '_' + args.ns + str(args.n_negs) + '_' + str(args.K) + '.txt'
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
             if not os.path.exists(file_path):
                 with open(file_path, 'w'):  # Create an empty file
                     pass
@@ -147,12 +148,13 @@ if __name__ == '__main__':
                 file.write(str(train_res) + '\n')
 
             # *********************************************************
-            # early stopping when cur_best_pre_0 is decreasing for 10 successive steps.
-            cur_best_pre_0, stopping_step, should_stop = early_stopping(valid_ret['recall'][0], cur_best_pre_0,
-                                                                        stopping_step, expected_order='acc',
-                                                                        flag_step=10)
-            if should_stop:
-                break
+            # early stopping when cur_best_pre_0 is decreasing for args.stopping_steps successive steps.
+            if args.early_stop:
+                cur_best_pre_0, stopping_step, should_stop = early_stopping(valid_ret['recall'][0], cur_best_pre_0,
+                                                                            stopping_step, expected_order='acc',
+                                                                            flag_step=args.stopping_steps)
+                if should_stop:
+                    break
 
             """save weight"""
             if valid_ret['recall'][0] == cur_best_pre_0 and args.save:

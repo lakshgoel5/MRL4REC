@@ -12,7 +12,7 @@ def parse_args():
         "--data_path", nargs="?", default="data/", help="Input data path."
     )
 
-    # ===== train ===== # 
+    # ===== train ===== # 
     parser.add_argument("--gnn", nargs="?", default="lightgcn",
                         help="Choose a recommender:[lightgcn]")
     parser.add_argument('--epoch', type=int, default=300, help='number of epochs')
@@ -37,6 +37,8 @@ def parse_args():
     parser.add_argument("--ns", type=str, default='rns', help="rns,dns,dns_mn,dens,mix,cns,ahns")
     parser.add_argument("--n_negs", type=int, default=1, help="number of candidate negative")
 
+    parser.add_argument("--stopping_steps", type=int, default=30, help="number of evaluation steps for early stopping patience")
+    parser.add_argument("--early_stop", type=bool, default=True, help="enable or disable early stopping")
     parser.add_argument("--p", type=int, default=-2, help="power")
     parser.add_argument("--alpha", type=float, default=0.2, help="alpha")
     parser.add_argument("--beta", type=float, default=0.1, help="beta")
