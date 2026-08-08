@@ -2,6 +2,13 @@ import argparse
 
 # MF can be implemented by setting the number of layers of LightGCN to 0.
 
+import ast
+
+def parse_int_list(v):
+    x = ast.literal_eval(v)
+    assert isinstance(x, list) and all(isinstance(i, int) for i in x)
+    return x
+
 def parse_args():
     parser = argparse.ArgumentParser(description="AHNS")
 
@@ -31,7 +38,7 @@ def parse_args():
     parser.add_argument("--context_hops", type=int, default=0, help="hop")
 
     parser.add_argument("--K", type=int, default=1, help="number of negative samples")
-    parser.add_argument("--nesting_list", type=list, default=[4, 8, 16, 32, 64], help="nesting_list")
+    parser.add_argument("--nesting_list", type=parse_int_list, default=[64, 128, 256, 512, 768], help="nesting_list")
     parser.add_argument("--loss", type=str, default='bpr', help="bpr, bce, cml, dau, uib, mrl")
 
     parser.add_argument("--ns", type=str, default='rns', help="rns,dns,dns_mn,dens,mix,cns,ahns")

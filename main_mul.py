@@ -124,8 +124,13 @@ if __name__ == '__main__':
             test_s_t = time()
             test_ret = test(model, user_dict, n_params, mode='test')
             test_e_t = time()
+            # prepare loss scalar
+            if hasattr(loss, 'item'):
+                loss_val = loss.item()
+            else:
+                loss_val = float(loss)
             train_res.add_row(
-                [epoch, train_e_t - train_s_t, test_e_t - test_s_t, loss.item(), test_ret['recall'], test_ret['ndcg'],
+                [epoch, train_e_t - train_s_t, test_e_t - test_s_t, loss_val, test_ret['recall'], test_ret['ndcg'],
                  test_ret['precision'], test_ret['hit_ratio']])
 
             if user_dict['valid_user_set'] is None:
@@ -134,8 +139,13 @@ if __name__ == '__main__':
                 test_s_t = time()
                 valid_ret = test(model, user_dict, n_params, mode='valid')
                 test_e_t = time()
+                # prepare loss scalar (recompute to be safe)
+                if hasattr(loss, 'item'):
+                    loss_val = loss.item()
+                else:
+                    loss_val = float(loss)
                 train_res.add_row(
-                    [epoch, train_e_t - train_s_t, test_e_t - test_s_t, loss.item(), valid_ret['recall'], valid_ret['ndcg'],
+                    [epoch, train_e_t - train_s_t, test_e_t - test_s_t, loss_val, valid_ret['recall'], valid_ret['ndcg'],
                      valid_ret['precision'], valid_ret['hit_ratio']])
             print(train_res)
 
@@ -159,6 +169,10 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), './results/' + args.dataset + '/' + 'model_' + '.ckpt')
         else:
             # logging.info('training loss at epoch %d: %f' % (epoch, loss.item()))
-            print('using time %.4fs, training loss at epoch %d: %.4f' % (train_e_t - train_s_t, epoch, loss.item()))
+            if hasattr(loss, 'item'):
+                loss_val = loss.item()
+            else:
+                loss_val = float(loss)
+            print('using time %.4fs, training loss at epoch %d: %.4f' % (train_e_t - train_s_t, epoch, loss_val))
 
     print('early stopping at %d, recall@20:%.4f' % (epoch, cur_best_pre_0))
