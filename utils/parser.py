@@ -65,4 +65,12 @@ def parse_args():
         "--out_dir", type=str, default="./results/beauty/", help="output directory for model"
     )
 
+    # ===== feature-based init ===== #
+    parser.add_argument(
+        "--init_emb_path", type=str, default=None,
+        help="Directory containing user_init.npy and item_init.npy produced by "
+             "prepare_feature_init.py. When set, embeddings are initialised from "
+             "original rich features instead of Xavier random.",
+    )
+
     return parser.parse_args()

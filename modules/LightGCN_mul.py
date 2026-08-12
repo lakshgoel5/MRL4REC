@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+import os
 
 class GraphConv(nn.Module):
     """
@@ -92,6 +94,7 @@ class LightGCN(nn.Module):
         assert self.K == len(self.nesting_list)
 
         self.device = torch.device("cuda:0") if args_config.cuda else torch.device("cpu")
+        self.init_emb_path = getattr(args_config, "init_emb_path", None)
 
         self._init_weight()
         self.user_embed = nn.Parameter(self.user_embed)
@@ -107,9 +110,30 @@ class LightGCN(nn.Module):
         self.gcn = self._init_model()
 
     def _init_weight(self):
-        initializer = nn.init.xavier_uniform_
-        self.user_embed = initializer(torch.empty(self.n_users, self.emb_size))
-        self.item_embed = initializer(torch.empty(self.n_items, self.emb_size))
+        if self.init_emb_path is not None:
+            user_path = os.path.join(self.init_emb_path, "user_init.npy")
+            item_path = os.path.join(self.init_emb_path, "item_init.npy")
+            user_np = np.load(user_path).astype(np.float32)
+            item_np = np.load(item_path).astype(np.float32)
+
+            if user_np.shape != (self.n_users, self.emb_size):
+                raise ValueError(
+                    f"user_init.npy shape {user_np.shape} != "
+                    f"expected ({self.n_users}, {self.emb_size})"
+                )
+            if item_np.shape != (self.n_items, self.emb_size):
+                raise ValueError(
+                    f"item_init.npy shape {item_np.shape} != "
+                    f"expected ({self.n_items}, {self.emb_size})"
+                )
+
+            self.user_embed = torch.from_numpy(user_np)
+            self.item_embed = torch.from_numpy(item_np)
+            print(f"Loaded feature-based init from: {self.init_emb_path}")
+        else:
+            initializer = nn.init.xavier_uniform_
+            self.user_embed = initializer(torch.empty(self.n_users, self.emb_size))
+            self.item_embed = initializer(torch.empty(self.n_items, self.emb_size))
 
         # [n_users+n_items, n_users+n_items]
         self.sparse_norm_adj = self._convert_sp_mat_to_sp_tensor(self.adj_mat).to(self.device)
