@@ -72,8 +72,12 @@ def build_init_embeddings(src_data_dir: str, out_dir: str, emb_size: int):
     str2mrl_id = {p: i for i, p in enumerate(sorted_products)}
     print(f"Global item vocabulary: {n_items} items")
 
-    feat_dim = user_features.shape[1]
-    item_features = np.zeros((n_items, feat_dim), dtype=np.float32)
+    # Item features live in their own space (e.g. one-hot product attrs),
+    # not necessarily the same dimensionality as user features.
+    item_feat_dim = np.load(
+        os.path.join(src_data_dir, SPLITS[0][0], "pe.npy"), mmap_mode="r"
+    ).shape[1]
+    item_features = np.zeros((n_items, item_feat_dim), dtype=np.float32)
     item_filled = np.zeros(n_items, dtype=bool)
 
     for split_name, _, _ in SPLITS:
@@ -91,45 +95,44 @@ def build_init_embeddings(src_data_dir: str, out_dir: str, emb_size: int):
     print(f"Item features built:   {item_features.shape}")
 
     # ------------------------------------------------------------------ #
-    # 3.  Project to emb_size via PCA (fit jointly so U/I share subspace) #
+    # 3.  Project to emb_size via PCA                                     #
+    #     User and item features live in different spaces (different    #
+    #     dimensionality/semantics), so each is fit and projected        #
+    #     independently — they are NOT stacked into one PCA.             #
     # ------------------------------------------------------------------ #
-    if emb_size >= feat_dim:
-        print(f"emb_size ({emb_size}) >= feat_dim ({feat_dim}): padding with zeros")
-        user_init = np.zeros((user_features.shape[0], emb_size), dtype=np.float32)
-        user_init[:, :feat_dim] = user_features
-        item_init = np.zeros((item_features.shape[0], emb_size), dtype=np.float32)
-        item_init[:, :feat_dim] = item_features
-    else:
-        print(f"Fitting SVD-PCA {feat_dim} → {emb_size} on combined user+item features …")
-        all_features = np.vstack([user_features, item_features])  # [(n_users+n_items), feat_dim]
+    def project(features: np.ndarray, name: str) -> np.ndarray:
+        feat_dim = features.shape[1]
+        if emb_size >= feat_dim:
+            print(f"{name}: emb_size ({emb_size}) >= feat_dim ({feat_dim}): padding with zeros")
+            init = np.zeros((features.shape[0], emb_size), dtype=np.float32)
+            init[:, :feat_dim] = features
+            return init
 
-        # Centre
-        mean = all_features.mean(axis=0, keepdims=True)
-        all_centered = all_features - mean
+        print(f"{name}: fitting SVD-PCA {feat_dim} → {emb_size} …")
+        mean = features.mean(axis=0, keepdims=True)
+        centered = features - mean
 
-        # Truncated SVD via numpy (avoids sklearn dependency)
-        # We only need the top-emb_size right singular vectors
-        # Use randomised SVD for speed on large matrices
         try:
             from sklearn.utils.extmath import randomized_svd
-            U, S, Vt = randomized_svd(all_centered, n_components=emb_size, random_state=0)
-            print("Using randomised SVD (sklearn)")
+            _, S, Vt = randomized_svd(centered, n_components=emb_size, random_state=0)
+            print(f"{name}: using randomised SVD (sklearn)")
         except ImportError:
-            # Fall back to full SVD — slower but correct
-            print("sklearn not found; using numpy full SVD (may be slow) …")
-            _, S_full, Vt_full = np.linalg.svd(all_centered, full_matrices=False)
+            print(f"{name}: sklearn not found; using numpy full SVD (may be slow) …")
+            _, S_full, Vt_full = np.linalg.svd(centered, full_matrices=False)
             S  = S_full[:emb_size]
             Vt = Vt_full[:emb_size]
 
         components = Vt  # [emb_size, feat_dim]
 
-        n_total = all_centered.shape[0]
-        total_var = (all_centered ** 2).sum() / (n_total - 1)
+        n_total = centered.shape[0]
+        total_var = (centered ** 2).sum() / (n_total - 1)
         explained_var = (S ** 2 / (n_total - 1)).sum()
-        print(f"Explained variance: {explained_var / total_var:.3f}")
+        print(f"{name}: explained variance: {explained_var / total_var:.3f}")
 
-        user_init = ((user_features - mean) @ components.T).astype(np.float32)
-        item_init = ((item_features - mean) @ components.T).astype(np.float32)
+        return (centered @ components.T).astype(np.float32)
+
+    user_init = project(user_features, "user")
+    item_init = project(item_features, "item")
 
     # ------------------------------------------------------------------ #
     # 4.  Rescale to match Xavier uniform variance so gate/GCN layers    #
