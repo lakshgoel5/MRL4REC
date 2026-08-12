@@ -22,7 +22,7 @@ train_item_pop = defaultdict(int)
 test_item_pop = defaultdict(int)
 valid_item_pop = defaultdict(int)
 
-dataset_list = ['ml100k', 'phone', 'sport', 'tool', 'beauty', 'gowalla', 'yelp2018', 'amazon', 'tripartite_aug_ttv', 'btp_10k', 'btp_merged_filtered', 'btp_merged_filtered_min2']
+dataset_list = ['ml100k', 'phone', 'sport', 'tool', 'beauty', 'gowalla', 'yelp2018', 'amazon', 'tripartite_aug_ttv', 'btp_10k', 'btp_merged_filtered', 'btp_merged_filtered_min2', 'btp_data']
 
 def read_cf_amazon(file_name):
     return np.loadtxt(file_name, dtype=np.int32)  # [u_id, i_id]
